@@ -183,14 +183,67 @@ export default function FutureDashboard() {
       AQI: d.aqi_value
     }));
 
+  const generateReportHtml = () => {
+    const topRows = top5.map(a => `<tr><td>${a.area}</td><td>${a.avgAQI}</td></tr>`).join('');
+    const bottomRows = bottom5.map(a => `<tr><td>${a.area}</td><td>${a.avgAQI}</td></tr>`).join('');
+
+    const insightsHtml = insights ? `
+      <h4>Insights</h4>
+      <p><strong>Avg AQI:</strong> ${insights.avgAQI}</p>
+      <p><strong>% Poor/Severe days:</strong> ${insights.percentPoorSevere}%</p>
+      <p><strong>Most affected states:</strong> ${insights.topStates.map(s=>s.state + ` (${s.avg})`).join(', ')}</p>
+      <blockquote>${insights.externalSuggestion || insights.suggestion}</blockquote>
+    ` : '<p>No insights available</p>';
+
+    return `<!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>AQI Report</title>
+        <style>
+          body{font-family:Arial,Helvetica,sans-serif;background:#0b1520;color:#e6f0f6;padding:20px}
+          h1{color:#bfefff}
+          table{width:100%;border-collapse:collapse;margin-top:12px}
+          td,th{padding:8px;border:1px solid rgba(255,255,255,0.04)}
+          .kpi{display:inline-block;padding:8px 12px;background:rgba(255,255,255,0.02);margin-right:8px;border-radius:6px}
+        </style>
+      </head>
+      <body>
+        <h1>AQI Report — Generated</h1>
+        <div class="kpi">Avg AQI: ${avgAQI}</div>
+        <div class="kpi">Max AQI: ${maxAQI}</div>
+        <div class="kpi">Days: ${filtered.length}</div>
+
+        <h3>Top 5 Polluted Areas</h3>
+        <table><thead><tr><th>Area</th><th>Avg AQI</th></tr></thead><tbody>${topRows}</tbody></table>
+
+        <h3>Bottom 5 Cleanest Areas</h3>
+        <table><thead><tr><th>Area</th><th>Avg AQI</th></tr></thead><tbody>${bottomRows}</tbody></table>
+
+        ${insightsHtml}
+      </body>
+      </html>`;
+  }
+
+  const downloadReport = () => {
+    const html = generateReportHtml();
+    const b = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'aqi_report.html'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  const viewReport = () => {
+    const html = generateReportHtml();
+    const b = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(b);
+    window.open(url, '_blank');
+  }
+
   return (
     <div className="page">
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <h1>Future AQI Dashboard (Prediction)</h1>
-        <div style={{display:'flex', gap:12}}>
-          <button className="outline" onClick={async()=>{ const r=await fetch('http://localhost:5000/api/predict/download'); if(!r.ok) return alert('No predicted yet'); const b=await r.blob(); const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download='predicted.csv'; a.click(); URL.revokeObjectURL(url); }}>Download Predicted CSV</button>
-          <button className="outline" onClick={async()=>{ const r=await fetch('http://localhost:5000/api/predict/download'); if(!r.ok) return alert('No predicted yet'); const txt=await r.text(); setPreviewData(txt); setPreviewOpen(true); }}>View Predicted CSV</button>
-        </div>
       </div>
 
       {/* FILTERS */}
@@ -260,20 +313,15 @@ export default function FutureDashboard() {
         {/* REPORTS */}
         <div className="report-section" style={{marginTop:16}}>
           <div className="report-card">
-            <h4>Generate Reports</h4>
-            <p>Get downloadable reports and interactive visualizations for your analysis.</p>
+            <h4>Generate Report</h4>
+            <p>Generate a consolidated AQI report (includes KPIs, Top/Bottom areas and automated insights).</p>
             <div style={{display:'flex', gap:8, marginTop:8}}>
-              <button className="outline" onClick={()=>alert('Standard report generation not implemented (placeholder)')}>Generate Standard Report</button>
-              <button className="primary" onClick={()=>alert('Detailed report generation not implemented (placeholder)')}>Generate Detailed Report</button>
-              <button className="outline" onClick={()=>alert('Open interactive visualizations (placeholder)')}>View Interactive Visualizations</button>
+              <button className="primary" onClick={downloadReport}>Download Report</button>
+              <button className="outline" onClick={viewReport}>View Report</button>
             </div>
           </div>
 
           <div className="download-cards">
-            <div className="download-card">
-              <h5>Complete Analysis</h5>
-              <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const b=await r.blob(); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download='predicted.csv'; a.click(); URL.revokeObjectURL(u); }}>Download CSV</button>
-            </div>
             <div className="download-card">
               <h5>Top Polluted Areas</h5>
               <button className="outline" onClick={()=>{ const csv = top5.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='top5.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download CSV</button>
@@ -281,10 +329,6 @@ export default function FutureDashboard() {
             <div className="download-card">
               <h5>Bottom Clean Areas</h5>
               <button className="outline" onClick={()=>{ const csv = bottom5.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='bottom5.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download CSV</button>
-            </div>
-            <div className="download-card">
-              <h5>Clean Records</h5>
-              <button className="outline" onClick={()=>alert('Clean records download not implemented (placeholder)')}>Download CSV</button>
             </div>
           </div>
         </div>
