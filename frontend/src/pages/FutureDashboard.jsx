@@ -173,6 +173,7 @@ export default function FutureDashboard() {
   const sortedAreas = [...areaData].sort((a,b)=>b.avgAQI-a.avgAQI);
   const top5 = sortedAreas.slice(0,5);
   const bottom5 = sortedAreas.slice(-5).reverse();
+  const maxAvg = Math.max(...sortedAreas.map(a=>a.avgAQI)) || 1;
 
   /* ================= TREND ================= */
   const trend = filtered
@@ -276,6 +277,10 @@ export default function FutureDashboard() {
             <div className="download-card">
               <h5>Top Polluted Areas</h5>
               <button className="outline" onClick={()=>{ const csv = top5.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='top5.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download CSV</button>
+            </div>
+            <div className="download-card">
+              <h5>Bottom Clean Areas</h5>
+              <button className="outline" onClick={()=>{ const csv = bottom5.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='bottom5.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download CSV</button>
             </div>
             <div className="download-card">
               <h5>Clean Records</h5>
