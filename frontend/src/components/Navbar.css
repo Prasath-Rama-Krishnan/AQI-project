@@ -2,22 +2,23 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #020617;
   padding: 14px 30px;
-  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
 }
 
-.logo {
+.navbar h2 {
   color: #38bdf8;
 }
 
-.links a {
+.nav-links a {
+  color: #e5e7eb;
   margin-left: 20px;
   text-decoration: none;
-  color: #e5e7eb;
   font-weight: 500;
 }
 
-.links a.active {
+.nav-links a.active {
   color: #38bdf8;
   border-bottom: 2px solid #38bdf8;
 }

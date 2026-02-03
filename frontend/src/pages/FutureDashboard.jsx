@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Papa from "papaparse";
 import {
   BarChart,
@@ -13,6 +13,8 @@ import {
   Cell,
 } from "recharts";
 import "./Dashboard.css";
+import CustomTick from "../components/CustomTick";
+import CustomTooltip from "../components/CustomTooltip";
 
 const MONTHS = [
   "All",
@@ -22,8 +24,6 @@ const MONTHS = [
 
 export default function FutureDashboard() {
   const [rawFuture, setRawFuture] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-
   const [states, setStates] = useState([]);
   const [selectedState, setSelectedState] = useState("All");
   const [selectedMonth, setSelectedMonth] = useState("All");
@@ -45,7 +45,6 @@ export default function FutureDashboard() {
         }));
 
         setRawFuture(data);
-        setFiltered(data);
         setStates(["All", ...new Set(data.map(d => d.state))]);
       });
   }, []);
@@ -74,20 +73,33 @@ export default function FutureDashboard() {
       .catch(()=>setInsights(null));
   },[]);
 
-  // helper: month year (CY vs LY) aggregation
-  const monthAgg = (arr) => {
-    const byMonth = {};
-    arr.forEach(d => {
-      const dt = new Date(d.date);
-      const m = dt.getMonth();
-      const y = dt.getFullYear();
-      const k = `${y}-${m}`;
-      if (!byMonth[k]) byMonth[k] = { sum:0, count:0, year:y, month:m };
-      byMonth[k].sum += d.aqi_value;
-      byMonth[k].count++;
+  // compute overall prominent pollutant and purifier suggestion (used when State = All)
+  const overallProminent = (() => {
+    if (!insights) return null;
+    // count pollutants across stateSummaries
+    const counts = {};
+    (insights.stateSummaries || []).forEach(s => {
+      (s.topPollutants || []).forEach(p => { counts[p.pollutant] = (counts[p.pollutant] || 0) + 1; });
     });
-    return Object.values(byMonth).map(v=>({ year:v.year, month:v.month, avg: Math.round(v.sum/v.count) }));
-  };
+    const items = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    return items[0] ? items[0][0] : null;
+  })();
+
+  const overallPurifier = (() => {
+    if (!overallProminent) return null;
+    const map = {
+      'PM2.5': 'Use HEPA-grade air purifiers (True HEPA) and control indoor sources.',
+      'PM10': 'Use HEPA-grade air purifiers and regular cleaning to reduce dust.',
+      'NO2': 'Reduce vehicle emissions; consider activated carbon filters for gases indoors.',
+      'SO2': 'Reduce industrial SO2 emissions; use activated carbon filters indoors.',
+      'O3': 'Avoid producing ozone indoors. Mechanical filtration helps little for O3; ensure ventilation and control sources.',
+      'CO': 'Address combustion sources and use CO detectors; activated carbon can help some VOCs.'
+    };
+    return map[overallProminent] || 'Maintain ventilation and use appropriate filters';
+  })();
+  // month-year aggregation helper removed (not used)
+
+  /* CustomTick moved to src/components/CustomTick.jsx */
 
   const monthlyComparison = () => {
     // compute current year and last year avg per month
@@ -117,38 +129,35 @@ export default function FutureDashboard() {
   const monthCompare = monthlyComparison();
 
   /* ================= APPLY FILTERS ================= */
-  useEffect(() => {
+  const filteredData = useMemo(() => {
     let data = [...rawFuture];
 
-    if (selectedState !== "All")
-      data = data.filter(d => d.state === selectedState);
+    if (selectedState !== "All") data = data.filter(d => d.state === selectedState);
+    if (selectedMonth !== "All") data = data.filter(d => d.month === selectedMonth);
 
-    if (selectedMonth !== "All")
-      data = data.filter(d => d.month === selectedMonth);
-
-    setFiltered(data);
+    return data;
   }, [selectedState, selectedMonth, rawFuture]);
 
-  if (!filtered.length) return <p className="page">Loading dashboard...</p>;
+  if (!filteredData.length) return <p className="page">Loading dashboard...</p>;
 
   // animations and improved chart props
   const chartAnim = { isAnimationActive: true, animationDuration: 900 };
 
   /* ================= KPIs ================= */
   const avgAQI = Math.round(
-    filtered.reduce((s, d) => s + d.aqi_value, 0) / filtered.length
+    filteredData.reduce((s, d) => s + d.aqi_value, 0) / filteredData.length
   );
-  const maxAQI = Math.max(...filtered.map(d => d.aqi_value));
+  const maxAQI = Math.max(...filteredData.map(d => d.aqi_value));
 
-  const poorSevere = filtered.filter(
+  const poorSevere = filteredData.filter(
     d => d.air_quality_status === "Poor" || d.air_quality_status === "Severe"
   ).length;
 
-  const goodDays = filtered.filter(d => d.air_quality_status === "Good").length;
+  const goodDays = filteredData.filter(d => d.air_quality_status === "Good").length;
 
   /* ================= CATEGORY ================= */
   const categoryMap = {};
-  filtered.forEach(d => {
+  filteredData.forEach(d => {
     categoryMap[d.air_quality_status] =
       (categoryMap[d.air_quality_status] || 0) + 1;
   });
@@ -159,7 +168,7 @@ export default function FutureDashboard() {
 
   /* ================= AREA ================= */
   const areaMap = {};
-  filtered.forEach(d => {
+  filteredData.forEach(d => {
     if (!areaMap[d.area]) areaMap[d.area] = { sum: 0, count: 0 };
     areaMap[d.area].sum += d.aqi_value;
     areaMap[d.area].count++;
@@ -170,18 +179,31 @@ export default function FutureDashboard() {
     avgAQI: Math.round(v.sum / v.count)
   }));
 
+  // compute prominent pollutant + purifier suggestion for current filtered selection
+  const pollutantCounts = {};
+  filteredData.forEach(d => {
+    (d.prominent_pollutants || d.prominent_pollutant || '').split(',').map(s=>s.trim()).filter(Boolean).forEach(p => pollutantCounts[p] = (pollutantCounts[p]||0) + 1);
+  });
+  const dynamicTop = Object.entries(pollutantCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
+  const purifierMap = {
+    'PM2.5': 'Use HEPA-grade air purifiers (True HEPA) and control indoor sources.',
+    'PM10': 'Use HEPA-grade air purifiers and regular cleaning to reduce dust.',
+    'NO2': 'Reduce vehicle emissions; consider activated carbon filters for gases indoors.',
+    'SO2': 'Reduce industrial SO2 emissions; use activated carbon filters indoors.',
+    'O3': 'Avoid producing ozone indoors. Mechanical filtration helps little for O3; ensure ventilation and control sources.',
+    'CO': 'Address combustion sources and use CO detectors; activated carbon can help some VOCs.'
+  };
+  const dynamicPurifier = dynamicTop ? (purifierMap[dynamicTop] || 'Maintain ventilation and use appropriate filters') : null;
+
   const sortedAreas = [...areaData].sort((a,b)=>b.avgAQI-a.avgAQI);
   const top5 = sortedAreas.slice(0,5);
   const bottom5 = sortedAreas.slice(-5).reverse();
   const maxAvg = Math.max(...sortedAreas.map(a=>a.avgAQI)) || 1;
 
   /* ================= TREND ================= */
-  const trend = filtered
-    .sort((a,b)=>a.date-b.date)
-    .map(d => ({
-      date: d.date.toLocaleDateString(),
-      AQI: d.aqi_value
-    }));
+  const trend = [...filteredData]
+    .sort((a,b)=> new Date(a.date) - new Date(b.date))
+    .map(d => ({ date: new Date(d.date).toLocaleDateString(), AQI: d.aqi_value }));
 
   const generateReportHtml = () => {
     const topRows = top5.map(a => `<tr><td>${a.area}</td><td>${a.avgAQI}</td></tr>`).join('');
@@ -212,7 +234,7 @@ export default function FutureDashboard() {
         <h1>AQI Report — Generated</h1>
         <div class="kpi">Avg AQI: ${avgAQI}</div>
         <div class="kpi">Max AQI: ${maxAQI}</div>
-        <div class="kpi">Days: ${filtered.length}</div>
+        <div class="kpi">Days: ${filteredData.length}</div>
 
         <h3>Top 5 Polluted Areas</h3>
         <table><thead><tr><th>Area</th><th>Avg AQI</th></tr></thead><tbody>${topRows}</tbody></table>
@@ -266,12 +288,17 @@ export default function FutureDashboard() {
       <div className="kpi-grid">
         <div className="kpi">Avg AQI<br/>{avgAQI}</div>
         <div className="kpi">Max AQI<br/>{maxAQI}</div>
-        <div className="kpi">Days<br/>{filtered.length}</div>
-        <div className="kpi">Poor + Severe<br/>{Math.round((poorSevere/filtered.length)*100)}%</div>
-        <div className="kpi">Good Days<br/>{Math.round((goodDays/filtered.length)*100)}%</div>
+        <div className="kpi">Days<br/>{filteredData.length}</div>
+        <div className="kpi">Poor + Severe<br/>{filteredData.length ? Math.round((poorSevere/filteredData.length)*100) : 0}%</div>
+        <div className="kpi">Good Days<br/>{filteredData.length ? Math.round((goodDays/filteredData.length)*100) : 0}%</div>
 
-        <div className="kpi">Prominent Pollutant<br/>{insights?.stateSummaries?.find(s=>s.state===selectedState)?.topPollutants?.[0]?.pollutant || '-'}</div>
-        <div className="kpi">Purifier Suggestion<br/><small>{insights?.stateSummaries?.find(s=>s.state===selectedState)?.purifierSuggestion || '-'}</small></div>
+        <div className="kpi">Prominent Pollutant<br/>{
+          // prefer dynamic per selected state+month, fallback to insights if empty
+          (dynamicTop || (selectedState === 'All' ? (overallProminent || '-') : (insights?.stateSummaries?.find(s=>s.state===selectedState)?.topPollutants?.[0]?.pollutant || '-')) ) || '-'
+        }</div>
+        <div className="kpi">Purifier Suggestion<br/><small>{
+          dynamicPurifier || (selectedState === 'All' ? (overallPurifier || (insights?.suggestion || '-')) : (insights?.stateSummaries?.find(s=>s.state===selectedState)?.purifierSuggestion || '-'))
+        }</small></div>
       </div>
 
       {/* PAST VS FUTURE */}
@@ -282,7 +309,7 @@ export default function FutureDashboard() {
             { name:"Past Avg", AQI: pastAvg },
             { name:"Future Avg", AQI: avgAQI }
           ]} {...chartAnim}>
-            <XAxis dataKey="name"/>
+            <XAxis dataKey="name" tick={<CustomTick />} />
             <YAxis/>
             <Tooltip/>
             <Bar dataKey="AQI" fill="#06b6d4"/>
@@ -293,19 +320,16 @@ export default function FutureDashboard() {
       {/* TREND */}
       <h3>AQI Trend</h3>
       <LineChart width={1000} height={300} data={trend} {...chartAnim}>
-        <XAxis dataKey="date" tick={{fill:'#e6f0f6'}}/>
+        <XAxis dataKey="date" tick={<CustomTick />} />
         <YAxis tick={{fill:'#e6f0f6'}}/>
-        <Tooltip/>
-        <Line dataKey="AQI" stroke="#06b6d4" dot={false} isAnimationActive={true} animationDuration={900}/>
-      </LineChart>
-
-      {/* MONTH-WISE COMPARISON (CY vs LY) */}
+        <Tooltip content={<CustomTooltip/>} />        <Line dataKey="AQI" stroke="#06b6d4" dot={false} isAnimationActive={true} animationDuration={900}/>
+      </LineChart>      {/* MONTH-WISE COMPARISON (CY vs LY) */}
       <h3>Monthly Comparison (Current Year vs Last Year)</h3>
       <div className="card">
         <BarChart width={1000} height={300} data={monthCompare} {...chartAnim}>
-          <XAxis dataKey="month" tickFormatter={(m)=>["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]} tick={{fill:'#e6f0f6'}}/>
+          <XAxis dataKey="month" tick={<CustomTick formatter={(m)=>["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]} />} />
           <YAxis tick={{fill:'#e6f0f6'}}/>
-          <Tooltip/>
+          <Tooltip content={<CustomTooltip/>} />
           <Bar dataKey="thisYearAvg" fill="#06b6d4" name="This Year" />
           <Bar dataKey="lastYearAvg" fill="#8b5cf6" name="Last Year" />
         </BarChart>
@@ -315,7 +339,7 @@ export default function FutureDashboard() {
           <div className="report-card">
             <h4>Reports & Predictions</h4>
             <p>Download or view the latest predicted dataset and consolidated AQI report.</p>
-            <div style={{display:'flex', gap:8, marginTop:8}}>
+            <div className="report-buttons" style={{marginTop:8}}>
               <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const b=await r.blob(); const u=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=u; aEl.download='predicted.csv'; aEl.click(); URL.revokeObjectURL(u); }}>Download Predicted CSV</button>
               <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const txt=await r.text(); const blob=new Blob([txt],{type:'text/csv'}); const url=URL.createObjectURL(blob); window.open(url,'_blank'); }}>View Predicted CSV</button>
               <button className="primary" onClick={downloadReport}>Download Report</button>
@@ -329,14 +353,14 @@ export default function FutureDashboard() {
       <h3>Area-wise Avg AQI</h3>
       <div className="card">
         <BarChart width={1000} height={300} data={areaData} {...chartAnim}>
-          <XAxis dataKey="area" tick={{fill:'#e6f0f6'}}/>
+          <XAxis dataKey="area" tick={<CustomTick />} />
           <YAxis tick={{fill:'#e6f0f6'}}/>
-          <Tooltip/>
+          <Tooltip content={<CustomTooltip/>} />
           <Bar dataKey="avgAQI" fill="#3b82f6"/>
         </BarChart>
-        <div style={{marginTop:10, display:'flex', gap:12}}>
+        <div className="report-buttons" style={{marginTop:10}}>
           <button className="outline" onClick={()=>{ const csv = areaData.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='area_avg.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download Area CSV</button>
-          <button className="outline" onClick={()=>{ setPreviewData(areaData.map(a=>`${a.area},${a.avgAQI}`).join('\n')); setPreviewOpen(true); }}>View Area CSV</button>
+          <button className="outline" onClick={()=>{ const csv = areaData.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); window.open(url,'_blank'); URL.revokeObjectURL(url); }}>View Area CSV</button>
         </div>
       </div>
 

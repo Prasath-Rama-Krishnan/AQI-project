@@ -70,6 +70,22 @@ h3 { color: #cfeefe }
 .download-card { padding:18px; border-radius:10px; min-width:200px; background: rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); text-align:center }
 .download-card h5 { margin-bottom:8px }
 
+/* Unified report/prediction buttons (same color, spaced, on one line) */
+.report-buttons { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.report-buttons .outline, .report-buttons .primary {
+  background: linear-gradient(90deg,#06b6d4,#3b82f6);
+  color: white;
+  border: none;
+  box-shadow: 0 8px 24px rgba(59,130,246,0.12);
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+}
+.report-buttons .outline:hover, .report-buttons .primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(59,130,246,0.14);
+}
+
 .primary { background: linear-gradient(90deg,#06b6d4,#3b82f6); color:white; padding:8px 12px; border-radius:8px; border:none; cursor:pointer }
 .outline { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:transparent; cursor:pointer }
 

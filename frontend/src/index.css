@@ -1,9 +1,20 @@
 body {
   margin: 0;
+  font-family: Arial, sans-serif;
   background: #020617;
   color: white;
-  font-family: system-ui, sans-serif;
 }
-.page {
-  padding: 30px;
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 30px;
+  background: #020617;
+  border-bottom: 1px solid #1e293b;
+}
+
+.nav a {
+  margin-left: 15px;
+  color: #38bdf8;
+  text-decoration: none;
 }

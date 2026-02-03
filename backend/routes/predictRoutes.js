@@ -1,12 +1,24 @@
 const express = require("express");
-const multer = require("multer");
-const { runPrediction } = require("../controllers/predictController");
-
 const router = express.Router();
+const multer = require("multer");
+const upload = multer();
+const {
+  uploadAndPredict,
+  runPredictionOnSample,
+  downloadPredicted,
+  getInsights
+} = require("../controllers/predictController");
 
-/* upload in memory, NOT permanent */
-const upload = multer({ dest: "temp/" });
+// Accept multipart file upload (field name: file)
+router.post("/upload", upload.single("file"), uploadAndPredict);
 
-router.post("/", upload.single("file"), runPrediction);
+// Run prediction on server-side sample file: /api/predict/sample/aqi.csv
+router.get("/sample/:name", runPredictionOnSample);
+
+// Download predicted CSV
+router.get("/download", downloadPredicted);
+
+// Insights and suggestions
+router.get("/insights", getInsights);
 
 module.exports = router;

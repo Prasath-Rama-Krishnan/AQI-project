@@ -1,60 +1,49 @@
 import sys
 import pandas as pd
+import json
 from sklearn.linear_model import LinearRegression
-from datetime import timedelta
 
-input_csv = sys.argv[1]
-output_csv = sys.argv[2]
+df = pd.read_csv(sys.stdin)
 
-df = pd.read_csv(input_csv)
-
-df["date"] = pd.to_datetime(df["date"])
-df["ord"] = df["date"].map(pd.Timestamp.toordinal)
+df["date"] = pd.to_datetime(df["date"], dayfirst=True)
 df["aqi_value"] = pd.to_numeric(df["aqi_value"], errors="coerce")
+df = df.dropna()
+
+df["date_ordinal"] = df["date"].map(pd.Timestamp.toordinal)
 
 future_dates = pd.date_range(
-    df["date"].max() + timedelta(days=1),
-    df["date"].max() + timedelta(days=365),
+    start=df["date"].max(),
+    periods=365,
     freq="D"
 )
 
+future_df = pd.DataFrame({
+    "date": future_dates,
+    "date_ordinal": future_dates.map(pd.Timestamp.toordinal)
+})
+
 results = []
 
-for (state, area), group in df.groupby(["state", "area"]):
-    if len(group) < 30:
+for (state, area), g in df.groupby(["state", "area"]):
+    if len(g) < 30:
         continue
 
-    X = group[["ord"]]
-    y = group["aqi_value"]
-
     model = LinearRegression()
-    model.fit(X, y)
+    model.fit(g[["date_ordinal"]], g["aqi_value"])
 
-    for d in future_dates:
-        pred = model.predict(
-            pd.DataFrame({"ord": [d.toordinal()]})
-        )[0]
+    preds = model.predict(future_df[["date_ordinal"]])
 
-        pred = max(0, int(pred))
-
-        if pred <= 50:
-            status = "Good"
-        elif pred <= 100:
-            status = "Satisfactory"
-        elif pred <= 200:
-            status = "Moderate"
-        elif pred <= 300:
-            status = "Poor"
-        else:
-            status = "Very Poor"
-
+    for d, aqi in zip(future_dates, preds):
         results.append({
             "date": d.strftime("%Y-%m-%d"),
             "state": state,
             "area": area,
-            "aqi_value": pred,
-            "air_quality_status": status
+            "aqi_value": max(0, int(aqi)),
+            "air_quality_status":
+                "Good" if aqi <= 50 else
+                "Moderate" if aqi <= 100 else
+                "Poor" if aqi <= 200 else
+                "Severe"
         })
 
-out_df = pd.DataFrame(results)
-out_df.to_csv(output_csv, index=False)
+print(json.dumps(results))
