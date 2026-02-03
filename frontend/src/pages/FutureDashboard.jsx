@@ -293,8 +293,8 @@ export default function FutureDashboard() {
       {/* TREND */}
       <h3>AQI Trend</h3>
       <LineChart width={1000} height={300} data={trend} {...chartAnim}>
-        <XAxis dataKey="date" hide/>
-        <YAxis/>
+        <XAxis dataKey="date" tick={{fill:'#e6f0f6'}}/>
+        <YAxis tick={{fill:'#e6f0f6'}}/>
         <Tooltip/>
         <Line dataKey="AQI" stroke="#06b6d4" dot={false} isAnimationActive={true} animationDuration={900}/>
       </LineChart>
@@ -303,8 +303,8 @@ export default function FutureDashboard() {
       <h3>Monthly Comparison (Current Year vs Last Year)</h3>
       <div className="card">
         <BarChart width={1000} height={300} data={monthCompare} {...chartAnim}>
-          <XAxis dataKey="month" tickFormatter={(m)=>["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]}/>
-          <YAxis/>
+          <XAxis dataKey="month" tickFormatter={(m)=>["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]} tick={{fill:'#e6f0f6'}}/>
+          <YAxis tick={{fill:'#e6f0f6'}}/>
           <Tooltip/>
           <Bar dataKey="thisYearAvg" fill="#06b6d4" name="This Year" />
           <Bar dataKey="lastYearAvg" fill="#8b5cf6" name="Last Year" />
@@ -313,22 +313,13 @@ export default function FutureDashboard() {
         {/* REPORTS */}
         <div className="report-section" style={{marginTop:16}}>
           <div className="report-card">
-            <h4>Generate Report</h4>
-            <p>Generate a consolidated AQI report (includes KPIs, Top/Bottom areas and automated insights).</p>
+            <h4>Reports & Predictions</h4>
+            <p>Download or view the latest predicted dataset and consolidated AQI report.</p>
             <div style={{display:'flex', gap:8, marginTop:8}}>
+              <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const b=await r.blob(); const u=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=u; aEl.download='predicted.csv'; aEl.click(); URL.revokeObjectURL(u); }}>Download Predicted CSV</button>
+              <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const txt=await r.text(); const blob=new Blob([txt],{type:'text/csv'}); const url=URL.createObjectURL(blob); window.open(url,'_blank'); }}>View Predicted CSV</button>
               <button className="primary" onClick={downloadReport}>Download Report</button>
               <button className="outline" onClick={viewReport}>View Report</button>
-            </div>
-          </div>
-
-          <div className="download-cards">
-            <div className="download-card">
-              <h5>Top Polluted Areas</h5>
-              <button className="outline" onClick={()=>{ const csv = top5.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='top5.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download CSV</button>
-            </div>
-            <div className="download-card">
-              <h5>Bottom Clean Areas</h5>
-              <button className="outline" onClick={()=>{ const csv = bottom5.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='bottom5.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download CSV</button>
             </div>
           </div>
         </div>
@@ -338,8 +329,8 @@ export default function FutureDashboard() {
       <h3>Area-wise Avg AQI</h3>
       <div className="card">
         <BarChart width={1000} height={300} data={areaData} {...chartAnim}>
-          <XAxis dataKey="area" hide/>
-          <YAxis/>
+          <XAxis dataKey="area" tick={{fill:'#e6f0f6'}}/>
+          <YAxis tick={{fill:'#e6f0f6'}}/>
           <Tooltip/>
           <Bar dataKey="avgAQI" fill="#3b82f6"/>
         </BarChart>
@@ -358,9 +349,13 @@ export default function FutureDashboard() {
           </Pie>
         </PieChart>
         <div style={{flex:1}}>
-          {Object.entries(categoryMap).map(([k,v])=> (
-            <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'6px 8px'}}>
-              <strong>{k}</strong><span>{v}</span>
+          {pieData.map((d,i)=> (
+            <div key={d.name} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 8px'}}>
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <div style={{width:14, height:14, borderRadius:3, background:["#06b6d4","#3b82f6","#8b5cf6","#f97316","#ef4444"][i % 5]}}></div>
+                <strong>{d.name}</strong>
+              </div>
+              <span>{d.value}</span>
             </div>
           ))}
         </div>

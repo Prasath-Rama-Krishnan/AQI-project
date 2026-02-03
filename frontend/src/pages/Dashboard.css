@@ -54,10 +54,10 @@ h3 { color: #cfeefe }
 .top-list .list, .bottom-list .list { display:flex; flex-direction:column; gap:10px }
 .list-row { display:flex; align-items:center; gap:12px; padding:10px; border-radius:8px; background: rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02) }
 .rank { width:28px; text-align:center; font-weight:700; color:#ffd6a5 }
-.area-name { flex:1; font-weight:600; color:#e6f0f6 }
+.area-name { flex:1; font-weight:600; color:#ffffff }
 .bar-wrap { width:40%; background: rgba(255,255,255,0.02); height:10px; border-radius:6px; overflow:hidden }
 .bar { height:100%; background: linear-gradient(90deg,#f97316,#ef4444) }
-.val { width:44px; text-align:right; font-weight:700; color:#e6f0f6 }
+.val { width:44px; text-align:right; font-weight:700; color:#ffffff }
 
 @media (max-width:900px) {
   .top-bottom-grid { grid-template-columns: 1fr }
