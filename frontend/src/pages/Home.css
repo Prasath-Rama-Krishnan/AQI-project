@@ -94,8 +94,15 @@ button.secondary {
 
 /* Team section */
 .team-section { max-width:1100px; width:100%; margin-top:26px; text-align:center }
-.team-list { display:flex; gap:12px; justify-content:center; margin-top:14px; flex-wrap:wrap }
-.team-card { background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); padding:12px 20px; border-radius:10px; color:#e6f9ff; box-shadow:0 6px 18px rgba(2,6,23,0.5); border:1px solid rgba(255,255,255,0.02) }
+.team-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-top:14px }
+.team-card { background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); padding:18px; border-radius:12px; color:#e6f9ff; box-shadow:0 10px 28px rgba(2,6,23,0.5); border:1px solid rgba(255,255,255,0.02); text-align:left }
+.team-top { display:flex; gap:12px; align-items:center }
+.avatar { width:64px; height:64px; border-radius:50%; background:linear-gradient(90deg,#7c3aed,#06b6d4); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:1.1rem; border:4px solid rgba(255,255,255,0.03) }
+.team-meta h4 { margin:0; font-size:1.05rem }
+.team-meta .role { font-size:0.86rem; color:#9fd6e6 }
+.bio { margin:12px 0 8px 0; color:#cfeefe; font-size:0.95rem }
+.tags { display:flex; gap:8px; flex-wrap:wrap }
+.tag { padding:6px 10px; border-radius:999px; background: rgba(255,255,255,0.02); color:#bfefff; font-size:0.8rem; border:1px solid rgba(255,255,255,0.02) }
 
 /* How it works (kept for compatibility) */
 .how-it-works { max-width: 1100px; color: #cfeefe; margin-top: 30px }
