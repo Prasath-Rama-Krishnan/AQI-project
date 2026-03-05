@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadDataset } from "../services/api";
+import { uploadDataset, BACKEND_URL, API_ENDPOINTS } from "../services/api";
 import Toast from "../components/Toast";
 import Modal from "../components/Modal";
 import Papa from 'papaparse';
@@ -12,6 +12,7 @@ import "./Prediction.css";
 export default function Prediction() {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -35,9 +36,12 @@ export default function Prediction() {
       showToast("Prediction complete.", "success");
 
       // confirm predicted file exists
-      const res = await fetch("http://localhost:5000/api/predict/download");
+      const res = await fetch(API_ENDPOINTS.download);
       if (res.ok) {
         setPredictedAvailable(true);
+        setFile(null);
+        setFileName('');
+        document.getElementById('file').value = '';
         // redirect to dashboard for visualization
         navigate("/dashboard");
       } else {
@@ -59,7 +63,7 @@ export default function Prediction() {
   const [resultsPurifier, setResultsPurifier] = useState(null);
 
   const downloadPredicted = async () => {
-    const res = await fetch("http://localhost:5000/api/predict/download");
+    const res = await fetch(API_ENDPOINTS.download);
     if (!res.ok) return showToast("No predicted file yet", "error");
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
@@ -73,7 +77,7 @@ export default function Prediction() {
 
   const loadPredictedData = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/predict/download");
+      const res = await fetch(API_ENDPOINTS.download);
       if (!res.ok) return showToast("No predicted file yet", "error");
       const txt = await res.text();
       const parsed = Papa.parse(txt, { header: true, skipEmptyLines: true });
@@ -137,22 +141,38 @@ export default function Prediction() {
 
       <div className="pred-tabs">
         <button className={activeTab==='upload' ? 'tab active' : 'tab'} onClick={()=>setActiveTab('upload')}>Upload Data</button>
-        <button className={predictedAvailable ? (activeTab==='results' ? 'tab active' : 'tab') : 'tab disabled'} onClick={()=>{ if(predictedAvailable) setActiveTab('results'); }}>Results & Analysis</button>
+        <button className={activeTab==='results' ? 'tab active' : 'tab'} onClick={async()=>{ setActiveTab('results'); if(!parsedResults) await loadPredictedData(); }}>Results & Analysis</button>
       </div>
 
       {activeTab === 'upload' && (
         <div className="upload-card">
-          <div className="upload-icon">⬆️</div>
+          <div className="upload-icon" onClick={() => document.getElementById('file').click()}>⬆️</div>
           <h3>Upload Dataset</h3>
           <p>CSV with columns: <code>date, state, area, aqi_value</code></p>
 
           <div className="file-input-wrap">
-            <input id="file" type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])} />
+            <input
+              id="file"
+              type="file"
+              accept=".csv"
+              onChange={(e) => {
+                const selected = e.target.files[0];
+                setFile(selected);
+                setFileName(selected ? selected.name : '');
+              }}
+            />
+            {fileName && (
+              <div style={{ marginTop: '10px', fontSize: '14px', color: '#06b6d4', fontWeight: '500' }}>
+                📄 {fileName}
+              </div>
+            )}
           </div>
 
           <div className="actions">
-            <button className="primary" onClick={handleUpload} disabled={!file || loading}>Predict</button>
-            <button className="muted" onClick={()=>{ setFile(null); document.getElementById('file').value=''; }}>Clear</button>
+            <button className="primary" onClick={handleUpload} disabled={!file || loading}>
+              {loading ? 'Processing...' : 'Predict'}
+            </button>
+            <button className="muted" onClick={() => { setFile(null); setFileName(''); document.getElementById('file').value = ''; }}>Clear</button>
           </div>
 
           {toast.message && <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "info" })} />}
@@ -161,7 +181,7 @@ export default function Prediction() {
             <div className="result-actions">
               <button onClick={() => { navigate('/dashboard'); }} className="outline">View Prediction</button>
               <button onClick={downloadPredicted} className="outline">Download Predicted CSV</button>
-              <button className="outline" onClick={() => { setPreviewOpen(true); fetch('http://localhost:5000/api/predict/download').then(r=>r.text()).then(t=>setPreviewData(t)).catch(()=>setPreviewData(null)) }}>Preview CSV</button>
+              <button className="outline" onClick={() => { setPreviewOpen(true); fetch(API_ENDPOINTS.download).then(r=>r.text()).then(t=>setPreviewData(t)).catch(()=>setPreviewData(null)) }}>Preview CSV</button>
             </div>
           )}
         </div>

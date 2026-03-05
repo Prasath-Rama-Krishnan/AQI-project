@@ -42,6 +42,10 @@ exports.uploadAndPredict = async (req, res) => {
 
     const buf = req.file.buffer;
 
+    // Save original uploaded file for historical data reference
+    const uploadPath = path.resolve(__dirname, "../temp/uploaded.csv");
+    fs.writeFileSync(uploadPath, buf);
+
     const results = await runPythonWithCSVBuffer(buf);
 
     const csv = jsonToCsv(results);
@@ -63,6 +67,11 @@ exports.runPredictionOnSample = async (req, res) => {
     if (!fs.existsSync(samplePath)) return res.status(404).json({ error: "Sample not found" });
 
     const buf = fs.readFileSync(samplePath);
+
+    // Save original file as uploaded.csv for historical reference
+    const uploadPath = path.resolve(__dirname, "../temp/uploaded.csv");
+    fs.writeFileSync(uploadPath, buf);
+
     const results = await runPythonWithCSVBuffer(buf);
 
     const csv = jsonToCsv(results);
@@ -83,6 +92,23 @@ exports.downloadPredicted = (req, res) => {
     return res.status(404).json({ error: "No predicted file available" });
   }
   res.sendFile(outPath);
+};
+
+// Download historical/original CSV (for year-on-year comparisons)
+exports.downloadHistorical = (req, res) => {
+  try {
+    const uploadedPath = path.resolve(__dirname, "../temp/uploaded.csv");
+    const defaultPath = path.resolve(__dirname, "../temp/aqi2026n.csv");
+    const filePath = fs.existsSync(uploadedPath) ? uploadedPath : defaultPath;
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "No historical data available" });
+    }
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // Simple insights from predicted CSV
@@ -135,11 +161,17 @@ exports.getInsights = (req, res) => {
 
     // compute prominent pollutants per state
     const statePollutants = {};
+    // also collect per-month summary for suggestions
+    const monthPollutants = {};
     data.forEach(d => {
       const state = d.state || 'Unknown';
       const pollutants = (d.prominent_pollutants || '').split(',').map(s=>s.trim()).filter(Boolean);
       if (!statePollutants[state]) statePollutants[state] = {};
       pollutants.forEach(p => statePollutants[state][p] = (statePollutants[state][p] || 0) + 1);
+
+      const month = new Date(d.date).toLocaleString('default',{month:'long'});
+      if (!monthPollutants[month]) monthPollutants[month] = {};
+      pollutants.forEach(p => monthPollutants[month][p] = (monthPollutants[month][p] || 0) + 1);
     });
 
     // map pollutant -> purifier suggestion
@@ -163,7 +195,18 @@ exports.getInsights = (req, res) => {
       };
     });
 
-    res.json({ avgAQI, percentPoorSevere, topStates, suggestion, externalSuggestion, stateSummaries });
+    // build month-wise pollutant summary (useful for front-end filtering)
+    const monthSummaries = Object.entries(monthPollutants).map(([month, map]) => {
+      const list = Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({ pollutant:k, count:v }));
+      const top = list[0] ? list[0].pollutant : null;
+      return {
+        month,
+        topPollutants: list.slice(0,5),
+        purifierSuggestion: top ? (purifierMap[top] || 'Maintain ventilation and use appropriate filters') : 'No data'
+      };
+    });
+
+    res.json({ avgAQI, percentPoorSevere, topStates, suggestion, externalSuggestion, stateSummaries, monthSummaries });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

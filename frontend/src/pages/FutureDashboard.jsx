@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import Papa from "papaparse";
+import { API_ENDPOINTS } from "../services/api";
 import {
   BarChart,
   Bar,
@@ -24,15 +25,33 @@ const MONTHS = [
 
 export default function FutureDashboard() {
   const [rawFuture, setRawFuture] = useState([]);
+  const [rawHistorical, setRawHistorical] = useState([]);
   const [states, setStates] = useState([]);
   const [selectedState, setSelectedState] = useState("All");
   const [selectedMonth, setSelectedMonth] = useState("All");
 
   const [pastAvg, setPastAvg] = useState(null);
 
-  /* ================= LOAD FUTURE CSV ================= */
+  /* ================= LOAD HISTORICAL CSV (for past year comparison) ================= */
   useEffect(() => {
-    fetch("http://localhost:5000/api/predict/download")
+    fetch(API_ENDPOINTS.historical || '/api/predict/historical')
+      .then(res => res.text())
+      .then(csv => {
+        const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+        const data = parsed.data.map(d => ({
+          ...d,
+          aqi_value: Number(d.aqi_value),
+          date: new Date(d.date),
+          month: new Date(d.date).toLocaleString("default", { month: "long" })
+        }));
+        setRawHistorical(data);
+      })
+      .catch(err => console.warn("Historical data not available:", err));
+  }, []);
+
+  /* ================= LOAD PREDICTED CSV (for future months) ================= */
+  useEffect(() => {
+    fetch(API_ENDPOINTS.download)
       .then(res => res.text())
       .then(csv => {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
@@ -45,8 +64,9 @@ export default function FutureDashboard() {
         }));
 
         setRawFuture(data);
-        setStates(["All", ...new Set(data.map(d => d.state))]);
-      });
+        setStates(["All", ...new Set([...data, ...rawHistorical].map(d => d.state))]);
+      })
+      .catch(err => console.error("Failed to load predicted data:", err));
   }, []);
 
   /* ================= LOAD PAST DATA (AVG ONLY) ================= */
@@ -67,7 +87,7 @@ export default function FutureDashboard() {
 
   useEffect(()=>{
     // request enriched suggestions from server
-    fetch("http://localhost:5000/api/predict/insights?enrich=1")
+    fetch(`${API_ENDPOINTS.insights}?enrich=1`)
       .then(r=>r.json())
       .then(setInsights)
       .catch(()=>setInsights(null));
@@ -102,41 +122,71 @@ export default function FutureDashboard() {
   /* CustomTick moved to src/components/CustomTick.jsx */
 
   const monthlyComparison = () => {
-    // compute current year and last year avg per month
-    const thisYear = new Date().getFullYear();
-    const lastYear = thisYear -1;
-    const tx = rawFuture.filter(d=> new Date(d.date).getFullYear()===thisYear);
-    const lx = rawFuture.filter(d=> new Date(d.date).getFullYear()===lastYear);
+    // Merge historical and predicted data
+    const allData = [...rawHistorical, ...rawFuture];
 
-    const makeMap = (arr) => {
+    // Get current and last year
+    const thisYear = new Date().getFullYear();
+    const lastYear = thisYear - 1;
+
+    // Filter data by year
+    const thisYearData = allData.filter(d => new Date(d.date).getFullYear() === thisYear);
+    const lastYearData = allData.filter(d => new Date(d.date).getFullYear() === lastYear);
+    const priorYearsData = allData.filter(d => new Date(d.date).getFullYear() < thisYear);
+
+    const makeMonthMap = (arr) => {
       const map = {};
       arr.forEach(d => {
         const m = new Date(d.date).getMonth();
-        if (!map[m]) map[m] = { sum:0, count:0 };
-        map[m].sum += d.aqi_value; map[m].count++;
+        if (!map[m]) map[m] = { sum: 0, count: 0 };
+        map[m].sum += d.aqi_value;
+        map[m].count++;
       });
-      const out = [];
-      for (let i=0;i<12;i++) out.push({ month:i, thisYearAvg: Math.round((map[i]?.sum||0)/(map[i]?.count||1)), lastYearAvg: Math.round((map[i]?.sum||0)/(map[i]?.count||1)) });
-      return out;
+      return map;
+    };
+
+    const thisYearMap = makeMonthMap(thisYearData);
+    const lastYearMap = makeMonthMap(lastYearData);
+    const priorYearsMap = makeMonthMap(priorYearsData);
+
+    // Build monthly comparison array with LY fallback using prior years' month averages
+    const comparison = [];
+    for (let i = 0; i < 12; i++) {
+      const thisAvg = thisYearMap[i] ? Math.round(thisYearMap[i].sum / thisYearMap[i].count) : 0;
+
+      let lastAvg = 0;
+      let usedFallback = false;
+      if (lastYearMap[i]) {
+        lastAvg = Math.round(lastYearMap[i].sum / lastYearMap[i].count);
+      } else if (priorYearsMap[i]) {
+        // Fallback: use average of the same month across any prior years available
+        lastAvg = Math.round(priorYearsMap[i].sum / priorYearsMap[i].count);
+        usedFallback = true;
+      }
+
+      comparison.push({
+        month: i,
+        monthName: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][i],
+        thisYearAvg: thisAvg,
+        lastYearAvg: lastAvg,
+        lastYearFallback: usedFallback
+      });
     }
 
-    const txm = makeMap(tx);
-    const lxm = makeMap(lx);
-
-    return txm.map((m,i)=>({ month:i, thisYearAvg: txm[i].thisYearAvg, lastYearAvg: lxm[i]?.thisYearAvg||0 }));
+    return comparison;
   };
 
   const monthCompare = monthlyComparison();
 
   /* ================= APPLY FILTERS ================= */
   const filteredData = useMemo(() => {
-    let data = [...rawFuture];
+    let data = [...rawFuture, ...rawHistorical]; // Merge both datasets
 
     if (selectedState !== "All") data = data.filter(d => d.state === selectedState);
     if (selectedMonth !== "All") data = data.filter(d => d.month === selectedMonth);
 
     return data;
-  }, [selectedState, selectedMonth, rawFuture]);
+  }, [selectedState, selectedMonth, rawFuture, rawHistorical]);
 
   if (!filteredData.length) return <p className="page">Loading dashboard...</p>;
 
@@ -193,7 +243,16 @@ export default function FutureDashboard() {
     'O3': 'Avoid producing ozone indoors. Mechanical filtration helps little for O3; ensure ventilation and control sources.',
     'CO': 'Address combustion sources and use CO detectors; activated carbon can help some VOCs.'
   };
-  const dynamicPurifier = dynamicTop ? (purifierMap[dynamicTop] || 'Maintain ventilation and use appropriate filters') : null;
+
+  // final suggestion values with fallbacks to insights / overall
+  const suggestionPollutant = dynamicTop
+    || (selectedState !== 'All' ? insights?.stateSummaries?.find(s=>s.state===selectedState)?.topPollutants?.[0]?.pollutant : null)
+    || (selectedMonth !== 'All' ? insights?.monthSummaries?.find(m=>m.month===selectedMonth)?.topPollutants?.[0]?.pollutant : null)
+    || overallProminent;
+  const suggestionPurifier = suggestionPollutant
+    ? (purifierMap[suggestionPollutant] || 'Maintain ventilation and use appropriate filters')
+    : (selectedState === 'All' ? overallPurifier : (insights?.stateSummaries?.find(s=>s.state===selectedState)?.purifierSuggestion))
+    || overallPurifier || insights?.suggestion || null;
 
   const sortedAreas = [...areaData].sort((a,b)=>b.avgAQI-a.avgAQI);
   const top5 = sortedAreas.slice(0,5);
@@ -291,14 +350,7 @@ export default function FutureDashboard() {
         <div className="kpi">Days<br/>{filteredData.length}</div>
         <div className="kpi">Poor + Severe<br/>{filteredData.length ? Math.round((poorSevere/filteredData.length)*100) : 0}%</div>
         <div className="kpi">Good Days<br/>{filteredData.length ? Math.round((goodDays/filteredData.length)*100) : 0}%</div>
-
-        <div className="kpi">Prominent Pollutant<br/>{
-          // prefer dynamic per selected state+month, fallback to insights if empty
-          (dynamicTop || (selectedState === 'All' ? (overallProminent || '-') : (insights?.stateSummaries?.find(s=>s.state===selectedState)?.topPollutants?.[0]?.pollutant || '-')) ) || '-'
-        }</div>
-        <div className="kpi">Purifier Suggestion<br/><small>{
-          dynamicPurifier || (selectedState === 'All' ? (overallPurifier || (insights?.suggestion || '-')) : (insights?.stateSummaries?.find(s=>s.state===selectedState)?.purifierSuggestion || '-'))
-        }</small></div>
+        {/* pollutant & purifier cards removed; suggestions relocated to insights area below */}
       </div>
 
       {/* PAST VS FUTURE */}
@@ -330,8 +382,9 @@ export default function FutureDashboard() {
           <XAxis dataKey="month" tick={<CustomTick formatter={(m)=>["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]} />} />
           <YAxis tick={{fill:'#e6f0f6'}}/>
           <Tooltip content={<CustomTooltip/>} />
-          <Bar dataKey="thisYearAvg" fill="#06b6d4" name="This Year" />
-          <Bar dataKey="lastYearAvg" fill="#8b5cf6" name="Last Year" />
+          {/* bars share a stackId to appear stacked rather than side-by-side */}
+          <Bar dataKey="thisYearAvg" fill="#06b6d4" name="This Year" stackId="a" />
+          <Bar dataKey="lastYearAvg" fill="#8b5cf6" name="Last Year" stackId="a" />
         </BarChart>
 
         {/* REPORTS */}
@@ -340,8 +393,8 @@ export default function FutureDashboard() {
             <h4>Reports & Predictions</h4>
             <p>Download or view the latest predicted dataset and consolidated AQI report.</p>
             <div className="report-buttons" style={{marginTop:8}}>
-              <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const b=await r.blob(); const u=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=u; aEl.download='predicted.csv'; aEl.click(); URL.revokeObjectURL(u); }}>Download Predicted CSV</button>
-              <button className="outline" onClick={async()=>{ const r=await fetch('/api/predict/download'); if(!r.ok) return alert('No predicted file'); const txt=await r.text(); const blob=new Blob([txt],{type:'text/csv'}); const url=URL.createObjectURL(blob); window.open(url,'_blank'); }}>View Predicted CSV</button>
+              <button className="outline" onClick={async()=>{ const r=await fetch(API_ENDPOINTS.download); if(!r.ok) return alert('No predicted file'); const b=await r.blob(); const u=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=u; aEl.download='predicted.csv'; aEl.click(); URL.revokeObjectURL(u); }}>Download Predicted CSV</button>
+              <button className="outline" onClick={async()=>{ const r=await fetch(API_ENDPOINTS.download); if(!r.ok) return alert('No predicted file'); const txt=await r.text(); const blob=new Blob([txt],{type:'text/csv'}); const url=URL.createObjectURL(blob); window.open(url,'_blank'); }}>View Predicted CSV</button>
               <button className="primary" onClick={downloadReport}>Download Report</button>
               <button className="outline" onClick={viewReport}>View Report</button>
             </div>
@@ -425,6 +478,16 @@ export default function FutureDashboard() {
             <p><strong>Most affected states:</strong> {insights.topStates.map(s=>s.state + ` (${s.avg})`).join(', ')}</p>
             <blockquote>{insights.externalSuggestion || insights.suggestion}</blockquote>
 
+            {/* filter-specific suggestion */}
+            {suggestionPollutant && (
+              <div style={{marginTop:12}}>
+                <h4>Selection-specific suggestion</h4>
+                <p>When viewing <strong>{selectedState}</strong>{selectedMonth !== 'All' ? ` in ${selectedMonth}` : ''}:</p>
+                <p><strong>Top pollutant:</strong> {suggestionPollutant}</p>
+                <p><strong>Purifier:</strong> {suggestionPurifier}</p>
+              </div>
+            )}
+
             <h4>State-specific pollutant & purifier suggestion</h4>
             <div style={{display:'flex', gap:12, flexWrap:'wrap'}}>
               {(insights.stateSummaries || []).slice(0,8).map(s=> (
@@ -437,6 +500,27 @@ export default function FutureDashboard() {
                 </div>
               ))}
             </div>
+
+            {/* month-specific area */}
+            {insights.monthSummaries && (
+              <>
+                <h4 style={{marginTop:16}}>Month-specific summaries</h4>
+                <div style={{display:'flex', gap:12, flexWrap:'wrap'}}>
+                  {(selectedMonth === 'All'
+                    ? insights.monthSummaries
+                    : insights.monthSummaries.filter(m=>m.month === selectedMonth)
+                  ).map(m=> (
+                    <div key={m.month} style={{minWidth:160, padding:8, borderRadius:8, background:'rgba(255,255,255,0.02)'}}>
+                      <strong>{m.month}</strong>
+                      <div style={{fontSize:12, marginTop:6}}>
+                        <div>Top: {m.topPollutants[0]?.pollutant || '-'}</div>
+                        <div style={{marginTop:6, fontSize:12}}>Suggestion: {m.purifierSuggestion}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <p>Loading suggestions...</p>

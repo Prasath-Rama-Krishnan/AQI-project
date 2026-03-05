@@ -28,6 +28,18 @@ for (state, area), g in df.groupby(["state", "area"]):
     if len(g) < 30:
         continue
 
+    # determine most common historic pollutant for this state/area
+    top_pollutant = ""
+    if "prominent_pollutants" in g.columns:
+        poll_counts = {}
+        for val in g["prominent_pollutants"].dropna():
+            for p in str(val).split(","):
+                p = p.strip()
+                if p:
+                    poll_counts[p] = poll_counts.get(p, 0) + 1
+        if poll_counts:
+            top_pollutant = max(poll_counts, key=poll_counts.get)
+
     model = LinearRegression()
     model.fit(g[["date_ordinal"]], g["aqi_value"])
 
@@ -43,7 +55,8 @@ for (state, area), g in df.groupby(["state", "area"]):
                 "Good" if aqi <= 50 else
                 "Moderate" if aqi <= 100 else
                 "Poor" if aqi <= 200 else
-                "Severe"
+                "Severe",
+            "prominent_pollutants": top_pollutant
         })
 
 print(json.dumps(results))

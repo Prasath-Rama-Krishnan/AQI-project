@@ -6,6 +6,7 @@ const {
   uploadAndPredict,
   runPredictionOnSample,
   downloadPredicted,
+  downloadHistorical,
   getInsights
 } = require("../controllers/predictController");
 
@@ -17,6 +18,9 @@ router.get("/sample/:name", runPredictionOnSample);
 
 // Download predicted CSV
 router.get("/download", downloadPredicted);
+
+// Download historical/original CSV (for comparisons)
+router.get("/historical", downloadHistorical);
 
 // Insights and suggestions
 router.get("/insights", getInsights);

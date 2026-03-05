@@ -1,0 +1,39 @@
+# Root .gitignore for AQI Project
+
+# Environment variables - NEVER COMMIT THESE
+.env
+.env.local
+.env.*.local
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Build outputs
+frontend/dist/
+backend/temp/*.csv
+frontend/temp/*.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.python-version
+
+# Temporary
+*.tmp
+temp/
