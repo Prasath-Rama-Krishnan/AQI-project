@@ -22,3 +22,20 @@
   color: #38bdf8;
   border-bottom: 2px solid #38bdf8;
 }
+
+/* Hide any potential dots or menu items */
+.navbar::before,
+.navbar::after,
+.nav-links::before,
+.nav-links::after {
+  display: none !important;
+}
+
+/* Hide any three dots or menu icons */
+.navbar .menu-dots,
+.navbar .hamburger,
+.navbar .dots,
+.navbar [class*="dots"],
+.navbar [class*="menu"] {
+  display: none !important;
+}

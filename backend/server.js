@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const predictRoutes = require("./routes/predictRoutes");
+const purifierRoutes = require("./routes/purifierRoutes");
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 5000;
@@ -9,7 +10,9 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 
 // CORS configuration - adjust for production
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: NODE_ENV === "production" 
+    ? [process.env.FRONTEND_URL || "https://yourdomain.com"]
+    : true, // Allow all origins in development
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -20,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // API routes
 app.use("/api/predict", predictRoutes);
+app.use("/api/purifier", purifierRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

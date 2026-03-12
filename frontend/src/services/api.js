@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
   download: `${BACKEND_URL}/api/predict/download`,
   historical: `${BACKEND_URL}/api/predict/historical`,
   insights: `${BACKEND_URL}/api/predict/insights`,
+  purifierSuggestions: `${BACKEND_URL}/api/purifier/suggestions`,
 };
 
 export async function uploadDataset(file) {
@@ -34,6 +35,21 @@ export async function uploadDataset(file) {
 
   if (!response.ok) {
     throw new Error("Prediction failed");
+  }
+
+  return response.json();
+}
+
+export async function getPurifierSuggestions(state) {
+  const response = await fetch(
+    `${API_ENDPOINTS.purifierSuggestions}?state=${encodeURIComponent(state)}`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch purifier suggestions");
   }
 
   return response.json();

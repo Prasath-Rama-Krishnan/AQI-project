@@ -1,0 +1,256 @@
+.purifier-suggestions {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.purifier-suggestions h3 {
+  color: #bfefff;
+  margin-bottom: 16px;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.pollutant-info {
+  background: rgba(6, 182, 212, 0.1);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #06b6d4;
+}
+
+.pollutant-info p {
+  margin: 4px 0;
+  color: #e6f0f6;
+}
+
+.pollutant-info em {
+  color: #bfefff;
+  font-size: 0.9rem;
+}
+
+.purifier-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.purifier-card {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.purifier-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(6, 182, 212, 0.2);
+  border-color: rgba(6, 182, 212, 0.5);
+}
+
+.purifier-image {
+  height: 180px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.purifier-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.purifier-image:hover img {
+  transform: scale(1.05);
+}
+
+.image-fallback {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cfeefe;
+  font-size: 48px;
+}
+
+.purifier-info h4 {
+  color: #bfefff;
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.purifier-info .cost {
+  color: #06b6d4;
+  font-weight: 600;
+  margin: 8px 0;
+  font-size: 1rem;
+}
+
+.purifier-info .benefits {
+  color: #e6f0f6;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin: 12px 0;
+  flex: 1;
+}
+
+.buy-button {
+  display: inline-block;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: white;
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.buy-button:hover {
+  background: linear-gradient(135deg, #0891b2, #0e7490);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+.error {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #f87171;
+}
+
+.section-title {
+  margin: 24px 0 16px 0;
+  padding: 0;
+  border-bottom: 2px solid rgba(6, 182, 212, 0.3);
+}
+
+.section-title h4 {
+  color: #bfefff;
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-info {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border-left: 4px solid #0891b2;
+}
+
+.search-info p {
+  margin: 4px 0;
+  color: #e6f0f6;
+}
+
+.search-info strong {
+  color: #0891b2;
+}
+
+.purifier-card.external-api {
+  border: 1px solid #0891b2;
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.1), rgba(8, 145, 178, 0.05));
+}
+
+.purifier-card.external-api:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 145, 178, 0.3);
+  border-color: #0ea5e9;
+}
+
+.rating {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #fbbf24;
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.product-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+  gap: 10px;
+}
+
+.retailer {
+  background: rgba(6, 182, 212, 0.2);
+  color: #06b6d4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.pollutant-tag {
+  background: rgba(6, 182, 212, 0.1);
+  color: #06b6d4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 5px 0;
+  display: inline-block;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.buy-button.external {
+  background: linear-gradient(135deg, #0891b2, #0ea5e9);
+  border: 1px solid #0ea5e9;
+}
+
+.buy-button.external:hover {
+  background: linear-gradient(135deg, #0ea5e9, #0d9488);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.4);
+}
+
+@media (max-width: 768px) {
+  .purifier-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .purifier-suggestions {
+    padding: 16px;
+    margin: 16px 0;
+  }
+  
+  .purifier-card {
+    padding: 12px;
+  }
+  
+  .purifier-image {
+    height: 150px;
+  }
+}
