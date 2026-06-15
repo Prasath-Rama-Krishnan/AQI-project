@@ -37,7 +37,7 @@ export default function PurifierSuggestions({ selectedState, predictionData }) {
         
         // Search for actual products dynamically based on prominent pollutants
         if (prominentPollutants.length > 0) {
-          const productSearch = await searchPurifierProducts(prominentPollutants, selectedState);
+          const productSearch = await searchPurifierProducts(prominentPollutants, selectedState, predictionData);
           setSearchResults(productSearch);
         }
       } catch (err) {
@@ -97,38 +97,60 @@ export default function PurifierSuggestions({ selectedState, predictionData }) {
       {/* External API Search Results */}
       {searchResults && searchResults.products && searchResults.products.length > 0 && (
         <div className="section-title">
-          <h4>🔍 Recommended Purifiers</h4>
+          <h4>🔍 Recommended Purifiers for {searchResults.state}</h4>
+          <div className="product-count-info">
+            <p>Showing {searchResults.productCount || searchResults.products.length} products for {searchResults.prominentPollutants?.join(', ') || 'air pollutants'}</p>
+          </div>
           <div className="purifier-grid">
             {searchResults.products.map((product, index) => (
-              <div key={`${product.id}-${index}`} className="purifier-card external-api">
-                <div className="purifier-image">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div className="image-fallback">
-                    <span>🛒</span>
-                  </div>
-                </div>
-                <div className="purifier-info">
-                  <h4>{product.name}</h4>
-                  <p className="cost"><strong>{product.cost}</strong></p>
-                  <p className="benefits">{product.benefits}</p>
-                  {product.pollutant && (
-                    <p className="pollutant-tag">Targets: {product.pollutant}</p>
+              <div key={`${product.id}-${index}`} className="purifier-card no-image">
+                <div className="purifier-header">
+                  <div className="brand-name">{product.name.split(' ')[0]}</div>
+                  <div className="product-name">{product.name.split(' ').slice(1).join(' ')}</div>
+                  {product.pollutantSpecific && (
+                    <div className="pollutant-badge">{product.pollutantSpecific} Removal</div>
                   )}
-                  <a 
-                    href={product.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="buy-button external"
-                  >
-                    View on {product.retailer} →
-                  </a>
+                </div>
+                
+                <div className="purifier-content">
+                  <div className="price-section">
+                    <div className="price-label">Price</div>
+                    <div className="price-value">{product.cost}</div>
+                  </div>
+                  
+                  <div className="benefits-section">
+                    <div className="benefits-label">Key Benefits</div>
+                    <div className="benefits-text">{product.benefits}</div>
+                  </div>
+                  
+                  <div className="specs-section">
+                    <div className="spec-item">
+                      <span className="spec-label">Coverage:</span>
+                      <span className="spec-value">{product.coverageArea || '30m²'}</span>
+                    </div>
+                    <div className="spec-item">
+                      <span className="spec-label">Efficiency:</span>
+                      <span className="spec-value">{product.removalRate || '95%+'}</span>
+                    </div>
+                    <div className="spec-item">
+                      <span className="spec-label">Rating:</span>
+                      <span className="spec-value">⭐ {product.rating || '4.0'}/5</span>
+                    </div>
+                  </div>
+                  
+                  <div className="action-section">
+                    <a 
+                      href={product.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="buy-button primary"
+                    >
+                      View on Amazon →
+                    </a>
+                    <div className="availability">
+                      {product.availability || 'In Stock'}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

@@ -10,7 +10,7 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 
 // CORS configuration - adjust for production
 const corsOptions = {
-  origin: NODE_ENV === "production" 
+  origin: NODE_ENV === "production"
     ? [process.env.FRONTEND_URL || "https://yourdomain.com"]
     : true, // Allow all origins in development
   credentials: true,

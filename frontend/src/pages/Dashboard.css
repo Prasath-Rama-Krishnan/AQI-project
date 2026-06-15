@@ -130,9 +130,10 @@ select:focus {
 }
 
 h1 { 
-  color: #bfefff; 
+  color: #ffffff; 
   font-size: 1.6rem; 
   margin: 6px 0;
+  font-weight: 700;
   text-shadow: 0 2px 4px rgba(0,0,0,0.3);
   position: relative;
 }
@@ -148,11 +149,13 @@ h1::after {
 }
 
 h3 { 
-  color: #cfeefe; 
+  color: #ffffff; 
   font-size: 1.1rem; 
   margin: 12px 0 6px;
   position: relative;
   padding-left: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 h3::before {

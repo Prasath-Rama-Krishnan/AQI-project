@@ -247,10 +247,211 @@
   }
   
   .purifier-card {
-    padding: 12px;
+    padding: 16px;
+  }
+}
+
+.section-title h4 {
+  margin-bottom: 8px;
+  color: #2c3e50;
+}
+
+.product-count-info {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.product-count-info p {
+  margin: 0;
+  font-size: 14px;
+  color: #495057;
+  font-weight: 500;
+}
+
+/* Clean product card layout without images */
+.purifier-card.no-image {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 2px solid #e9ecef;
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.purifier-card.no-image:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #007bff;
+}
+
+.purifier-header {
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.brand-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.product-name {
+  font-size: 18px;
+  font-weight: 500;
+  color: #2d3748;
+  margin-bottom: 8px;
+}
+
+.pollutant-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.purifier-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.price-section {
+  text-align: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  border-radius: 12px;
+  color: white;
+}
+
+.price-label {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 4px;
+}
+
+.price-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.benefits-section {
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border-left: 4px solid #007bff;
+}
+
+.benefits-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a202c;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.benefits-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #2d3748;
+}
+
+.specs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spec-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.spec-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.spec-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.action-section {
+  text-align: center;
+}
+
+.buy-button.primary {
+  display: inline-block;
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  text-decoration: none;
+  padding: 14px 28px;
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.buy-button.primary:hover {
+  background: linear-gradient(135deg, #ff5722, #ff6b35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+.availability {
+  font-size: 12px;
+  color: #28a745;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive adjustments for no-image layout */
+@media (max-width: 768px) {
+  .purifier-card.no-image {
+    padding: 20px;
   }
   
-  .purifier-image {
-    height: 150px;
+  .brand-name {
+    font-size: 20px;
+  }
+  
+  .product-name {
+    font-size: 16px;
+  }
+  
+  .price-value {
+    font-size: 24px;
+  }
+  
+  .specs-section {
+    gap: 8px;
+  }
+  
+  .spec-item {
+    padding: 10px 12px;
   }
 }
