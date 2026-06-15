@@ -5,12 +5,12 @@ const predictRoutes = require("./routes/predictRoutes");
 const purifierRoutes = require("./routes/purifierRoutes");
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5000;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
 // CORS configuration - adjust for production
 const corsOptions = {
-  origin: NODE_ENV === "production" 
+  origin: NODE_ENV === "production"
     ? [process.env.FRONTEND_URL || "https://yourdomain.com"]
     : true, // Allow all origins in development
   credentials: true,

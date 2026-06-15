@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Papa from "papaparse";
 import { API_ENDPOINTS } from "../services/api";
+import { extractStatesFromCSV } from "../services/externalAPI";
 import {
   BarChart,
   Bar,
@@ -59,22 +60,67 @@ export default function FutureDashboard() {
   useEffect(() => {
     const loadPredicted = async () => {
       try {
+        console.log('Loading predicted data from:', API_ENDPOINTS.download);
         const res = await fetch(API_ENDPOINTS.download);
+        
+        if (!res.ok) {
+          console.error('Failed to fetch predicted data:', res.status, res.statusText);
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
         const csv = await res.text();
+        console.log('CSV data length:', csv.length);
+        
+        if (!csv || csv.trim().length === 0) {
+          console.warn('Empty CSV data received');
+          setRawFuture([]);
+          setLoading(false);
+          return;
+        }
+        
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+        console.log('Parsed data rows:', parsed.data.length);
+        console.log('Sample row:', parsed.data[0]);
 
         const data = parsed.data.map(d => ({
           ...d,
           aqi_value: Number(d.aqi_value),
           date: new Date(d.date),
           month: new Date(d.date).toLocaleString("default", { month: "long" })
-        }));
+        })).filter(d => !isNaN(d.aqi_value)); // Filter out invalid AQI values
+
+        console.log('Valid data rows after filtering:', data.length);
 
         setRawFuture(data);
-        setStates(["All", ...new Set([...data, ...rawHistorical].map(d => d.state))]);
+        
+        // Extract states dynamically from CSV data
+        const allData = [...data, ...rawHistorical];
+        console.log('All data for state extraction:', allData.length, 'records');
+        
+        if (allData.length > 0) {
+          const stateExtraction = await extractStatesFromCSV(allData);
+          
+          if (stateExtraction.success) {
+            setStates(["All", ...stateExtraction.states]);
+            console.log(`Dynamically extracted ${stateExtraction.count} states from CSV:`, stateExtraction.states);
+          } else {
+            // Fallback to original method if extraction fails
+            const fallbackStates = ["All", ...new Set(allData.map(d => d.state).filter(s => s))];
+            setStates(fallbackStates);
+            console.log('Fallback states extracted:', fallbackStates);
+          }
+        } else {
+          console.log('No data available for state extraction');
+          setStates(["All"]);
+        }
+        
         setLoading(false);
       } catch (err) {
         console.error("Failed to load predicted data:", err);
+        if (err.message.includes('404')) {
+          console.warn('No predicted data available - please upload a CSV file first');
+        }
+        setRawFuture([]);
         setLoading(false);
       }
     };
@@ -227,7 +273,12 @@ export default function FutureDashboard() {
     return (
       <div className="page">
         <h3>No data available</h3>
-        <p>Please ensure data files are properly loaded.</p>
+        <p>Please upload a CSV file to generate predictions and view the dashboard.</p>
+        <div style={{marginTop: 20}}>
+          <a href="/prediction" style={{color: '#06b6d4', textDecoration: 'underline'}}>
+            Go to Prediction Page →
+          </a>
+        </div>
       </div>
     );
   }
@@ -245,36 +296,31 @@ export default function FutureDashboard() {
     d => d.air_quality_status === "Poor" || d.air_quality_status === "Severe"
   ).length;
 
-  const goodDays = filteredData.filter(d => d.air_quality_status === "Good").length;
+  const goodDays = filteredData.filter(
+    d => d.air_quality_status === "Good" || d.air_quality_status === "Satisfactory"
+  ).length;
 
-  /* ================= CATEGORY ================= */
-  const categoryMap = {};
+  // AQI Category Distribution for Pie Chart
+  const categoryCounts = {};
   filteredData.forEach(d => {
-    categoryMap[d.air_quality_status] =
-      (categoryMap[d.air_quality_status] || 0) + 1;
+    const status = d.air_quality_status || 'Unknown';
+    categoryCounts[status] = (categoryCounts[status] || 0) + 1;
   });
-
-  const pieData = Object.entries(categoryMap).map(([k, v]) => ({
-    name: k, value: v
+  
+  const pieData = Object.entries(categoryCounts).map(([name, value]) => ({
+    name,
+    value
   }));
 
-  /* ================= AREA ================= */
-  const areaMap = {};
-  filteredData.forEach(d => {
-    if (!areaMap[d.area]) areaMap[d.area] = { sum: 0, count: 0 };
-    areaMap[d.area].sum += d.aqi_value;
-    areaMap[d.area].count++;
-  });
-
-  const areaData = Object.entries(areaMap).map(([area, v]) => ({
-    area,
-    avgAQI: Math.round(v.sum / v.count)
-  }));
-
-  // compute prominent pollutant + purifier suggestion for current filtered selection
+  // Dynamic pollutant counts for current filter
   const pollutantCounts = {};
   filteredData.forEach(d => {
-    (d.prominent_pollutants || d.prominent_pollutant || '').split(',').map(s=>s.trim()).filter(Boolean).forEach(p => pollutantCounts[p] = (pollutantCounts[p]||0) + 1);
+    const pollutants = (d.prominent_pollutants || d.prominent_pollutant || '').split(',')
+      .map(p => p.trim().toUpperCase())
+      .filter(p => p);
+    pollutants.forEach(p => {
+      pollutantCounts[p] = (pollutantCounts[p] || 0) + 1;
+    });
   });
   const dynamicTop = Object.entries(pollutantCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
   
@@ -300,11 +346,6 @@ export default function FutureDashboard() {
     ? (purifierMap[suggestionPollutant] || 'Maintain ventilation and use appropriate filters')
     : (selectedState === 'All' ? overallPurifier : (insights?.stateSummaries?.find(s=>s.state===selectedState)?.purifierSuggestion))
     || overallPurifier || insights?.suggestion || null;
-
-  const sortedAreas = [...areaData].sort((a,b)=>b.avgAQI-a.avgAQI);
-  const top5 = sortedAreas.slice(0,5);
-  const bottom5 = sortedAreas.slice(-5).reverse();
-  const maxAvg = (sortedAreas.length ? sortedAreas.reduce((m, a) => Math.max(m, a.avgAQI), -Infinity) : 1) || 1;
 
   /* ================= TREND ================= */
   const trend = [...filteredData]
@@ -372,9 +413,6 @@ export default function FutureDashboard() {
   });
 
   const generateReportHtml = () => {
-    const topRows = top5.map(a => `<tr><td>${a.area}</td><td>${a.avgAQI}</td></tr>`).join('');
-    const bottomRows = bottom5.map(a => `<tr><td>${a.area}</td><td>${a.avgAQI}</td></tr>`).join('');
-
     const insightsHtml = insights ? `
       <h4>Insights</h4>
       <p><strong>Avg AQI:</strong> ${insights.avgAQI}</p>
@@ -401,12 +439,6 @@ export default function FutureDashboard() {
         <div class="kpi">Avg AQI: ${avgAQI}</div>
         <div class="kpi">Max AQI: ${maxAQI}</div>
         <div class="kpi">Days: ${filteredData.length}</div>
-
-        <h3>Top 5 Polluted Areas</h3>
-        <table><thead><tr><th>Area</th><th>Avg AQI</th></tr></thead><tbody>${topRows}</tbody></table>
-
-        <h3>Bottom 5 Cleanest Areas</h3>
-        <table><thead><tr><th>Area</th><th>Avg AQI</th></tr></thead><tbody>${bottomRows}</tbody></table>
 
         ${insightsHtml}
       </body>
@@ -519,21 +551,6 @@ export default function FutureDashboard() {
         </div>
       </div>
 
-      {/* AREA */}
-      <h3>Area-wise Avg AQI</h3>
-      <div className="card">
-        <BarChart width={1000} height={300} data={areaData} {...chartAnim}>
-          <XAxis dataKey="area" tick={<CustomTick />} />
-          <YAxis tick={{fill:'#e6f0f6'}}/>
-          <Tooltip content={<CustomTooltip/>} />
-          <Bar dataKey="avgAQI" fill="#3b82f6"/>
-        </BarChart>
-        <div className="report-buttons" style={{marginTop:10}}>
-          <button className="outline" onClick={()=>{ const csv = areaData.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const b=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(b); const aEl=document.createElement('a'); aEl.href=url; aEl.download='area_avg.csv'; aEl.click(); URL.revokeObjectURL(url); }}>Download Area CSV</button>
-          <button className="outline" onClick={()=>{ const csv = areaData.map(a=>`${a.area},${a.avgAQI}`).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); window.open(url,'_blank'); URL.revokeObjectURL(url); }}>View Area CSV</button>
-        </div>
-      </div>
-
       {/* CATEGORY */}
       <h3>AQI Category Distribution</h3>
       <div className="card" style={{display:'flex', gap:18, alignItems:'center'}}>
@@ -552,36 +569,6 @@ export default function FutureDashboard() {
               <span>{d.value}</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      <div className="top-bottom-grid">
-        <div className="card top-list">
-          <h3>Top 5 Polluted Areas</h3>
-          <div className="list">
-            {top5.map((a, idx)=> (
-              <div className="list-row" key={a.area}>
-                <div className="rank">{idx+1}</div>
-                <div className="area-name">{a.area}</div>
-                <div className="bar-wrap"><div className="bar" style={{width:`${(a.avgAQI/maxAvg)*100}%`}}></div></div>
-                <div className="val">{a.avgAQI}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card bottom-list">
-          <h3>Bottom 5 Cleanest Areas</h3>
-          <div className="list">
-            {bottom5.map((a, idx)=> (
-              <div className="list-row" key={a.area}>
-                <div className="rank">{idx+1}</div>
-                <div className="area-name">{a.area}</div>
-                <div className="bar-wrap"><div className="bar" style={{width:`${(a.avgAQI/maxAvg)*100}%`}}></div></div>
-                <div className="val">{a.avgAQI}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
